@@ -2,7 +2,6 @@ extern crate kernel32;
 extern crate winapi;
 
 use std::io::{Error, Result};
-use std::fmt;
 
 use self::winapi::minwindef::FALSE;
 use self::winapi::shlobj::INVALID_HANDLE_VALUE;
@@ -12,6 +11,7 @@ use self::winapi::winerror::ERROR_NO_MORE_FILES;
 use process_entry::ProcessEntry;
 use toolhelp_32_snapshot_handle::Toolhelp32SnapshotHandle;
 
+#[derive(Debug)]
 pub struct ProcessIterator {
     handle: Toolhelp32SnapshotHandle,
     first: Option<ProcessEntry>,
@@ -58,17 +58,5 @@ impl Iterator for ProcessIterator {
                 }
             },
         }
-    }
-}
-
-impl fmt::Debug for ProcessIterator {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter,
-               "ProcessIterator {{ handle: {:?}, first: {} }}",
-               self.handle,
-               match self.first {
-                   Some(_) => "Some(_)",
-                   None => "None",
-               })
     }
 }
