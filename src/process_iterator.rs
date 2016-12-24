@@ -3,47 +3,37 @@ extern crate winapi;
 
 use std::io::{Error, Result};
 use std::fmt;
-use std::mem;
 
-use self::winapi::minwindef::{DWORD, FALSE, MAX_PATH};
+use self::winapi::minwindef::FALSE;
 use self::winapi::shlobj::INVALID_HANDLE_VALUE;
-use self::winapi::tlhelp32::{PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+use self::winapi::tlhelp32::TH32CS_SNAPPROCESS;
+use self::winapi::winerror::ERROR_NO_MORE_FILES;
 
 use process_entry::ProcessEntry;
 use toolhelp_32_snapshot_handle::Toolhelp32SnapshotHandle;
 
 pub struct ProcessIterator {
     handle: Toolhelp32SnapshotHandle,
-    first: Option<PROCESSENTRY32W>,
+    first: Option<ProcessEntry>,
 }
 
 impl ProcessIterator {
     pub fn new() -> Result<ProcessIterator> {
-        let handle = unsafe { kernel32::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0 as DWORD) };
+        let handle = unsafe { kernel32::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
         if handle == INVALID_HANDLE_VALUE {
             return Err(Error::last_os_error());
         }
+        let handle = Toolhelp32SnapshotHandle(handle);
 
-        let mut entry = PROCESSENTRY32W {
-            dwSize: mem::size_of::<PROCESSENTRY32W>() as DWORD,
-            cntUsage: 0,
-            th32ProcessID: 0,
-            th32DefaultHeapID: 0,
-            th32ModuleID: 0,
-            cntThreads: 0,
-            th32ParentProcessID: 0,
-            pcPriClassBase: 0,
-            dwFlags: 0,
-            szExeFile: [0; MAX_PATH],
-        };
+        let mut entry = ProcessEntry::new();
         unsafe {
-            if kernel32::Process32FirstW(handle, &mut entry) == FALSE {
+            if kernel32::Process32FirstW(handle.0, &mut entry.0) == FALSE {
                 return Err(Error::last_os_error());
             }
         }
 
         Ok(ProcessIterator {
-            handle: Toolhelp32SnapshotHandle(handle),
+            handle: handle,
             first: Some(entry),
         })
     }
@@ -53,7 +43,21 @@ impl Iterator for ProcessIterator {
     type Item = Result<ProcessEntry>;
 
     fn next(&mut self) -> Option<Result<ProcessEntry>> {
-        unimplemented!();
+        match self.first.take() {
+            Some(process_entry) => Some(Ok(process_entry)),
+            None => unsafe {
+                let mut entry = ProcessEntry::new();
+                if kernel32::Process32NextW(self.handle.0, &mut entry.0) == FALSE {
+                    if kernel32::GetLastError() == ERROR_NO_MORE_FILES {
+                        None
+                    } else {
+                        Some(Err(Error::last_os_error()))
+                    }
+                } else {
+                    Some(Ok(entry))
+                }
+            },
+        }
     }
 }
 
