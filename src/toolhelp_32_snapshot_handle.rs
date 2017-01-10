@@ -15,9 +15,10 @@ impl Toolhelp32SnapshotHandle {
     pub fn new(handle: HANDLE) -> Toolhelp32SnapshotHandle {
         Toolhelp32SnapshotHandle(handle)
     }
+
     pub fn first(&mut self) -> Result<ProcessEntry> {
-        let mut entry = ProcessEntry::new();
-        if unsafe { kernel32::Process32FirstW(self.0, &mut entry.0) } == FALSE {
+        let mut entry: ProcessEntry = Default::default();
+        if unsafe { kernel32::Process32FirstW(self.0, entry.raw()) } == FALSE {
             Err(Error::last_os_error())
         } else {
             Ok(entry)
@@ -25,8 +26,8 @@ impl Toolhelp32SnapshotHandle {
     }
 
     pub fn next(&mut self) -> Result<ProcessEntry> {
-        let mut entry = ProcessEntry::new();
-        if unsafe { kernel32::Process32NextW(self.0, &mut entry.0) } == FALSE {
+        let mut entry: ProcessEntry = Default::default();
+        if unsafe { kernel32::Process32NextW(self.0, entry.raw()) } == FALSE {
             Err(Error::last_os_error())
         } else {
             Ok(entry)

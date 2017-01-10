@@ -23,11 +23,11 @@ impl ProcessIterator {
             return Err(Error::last_os_error());
         }
         let mut handle = Toolhelp32SnapshotHandle::new(handle);
-        let process_entry = handle.first()?;
+        let entry = handle.first()?;
 
         Ok(ProcessIterator {
             handle: handle,
-            first: Some(process_entry),
+            first: Some(entry),
         })
     }
 }
@@ -37,7 +37,7 @@ impl Iterator for ProcessIterator {
 
     fn next(&mut self) -> Option<Result<ProcessEntry>> {
         match self.first.take() {
-            Some(process_entry) => Some(Ok(process_entry)),
+            Some(entry) => Some(Ok(entry)),
             None => {
                 match self.handle.next() {
                     Err(ref error) if error.raw_os_error().unwrap_or(ERROR_SUCCESS as i32) ==

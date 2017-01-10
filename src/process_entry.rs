@@ -7,24 +7,13 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 
 use self::winapi::minwindef::{DWORD, MAX_PATH};
-use self::winapi::tlhelp32::PROCESSENTRY32W;
+pub use self::winapi::tlhelp32::PROCESSENTRY32W;
 
-pub struct ProcessEntry(pub PROCESSENTRY32W);
+pub struct ProcessEntry(PROCESSENTRY32W);
 
 impl ProcessEntry {
-    pub fn new() -> ProcessEntry {
-        ProcessEntry(PROCESSENTRY32W {
-            dwSize: mem::size_of::<PROCESSENTRY32W>() as DWORD,
-            cntUsage: 0,
-            th32ProcessID: 0,
-            th32DefaultHeapID: 0,
-            th32ModuleID: 0,
-            cntThreads: 0,
-            th32ParentProcessID: 0,
-            pcPriClassBase: 0,
-            dwFlags: 0,
-            szExeFile: [0; MAX_PATH],
-        })
+    pub fn raw(&mut self) -> &mut PROCESSENTRY32W {
+        &mut self.0
     }
 
     pub fn process_id(&self) -> u32 {
@@ -49,6 +38,23 @@ impl ProcessEntry {
             .position(|c| *c == 0)
             .map(|i| &name[..i])
             .unwrap_or(&name)))
+    }
+}
+
+impl Default for ProcessEntry {
+    fn default() -> ProcessEntry {
+        ProcessEntry(PROCESSENTRY32W {
+            dwSize: mem::size_of::<PROCESSENTRY32W>() as DWORD,
+            cntUsage: 0,
+            th32ProcessID: 0,
+            th32DefaultHeapID: 0,
+            th32ModuleID: 0,
+            cntThreads: 0,
+            th32ParentProcessID: 0,
+            pcPriClassBase: 0,
+            dwFlags: 0,
+            szExeFile: [0; MAX_PATH],
+        })
     }
 }
 
