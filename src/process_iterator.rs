@@ -3,10 +3,9 @@ extern crate winapi;
 
 use std::io::{Error, Result};
 
-use self::winapi::minwindef::FALSE;
 use self::winapi::shlobj::INVALID_HANDLE_VALUE;
 use self::winapi::tlhelp32::TH32CS_SNAPPROCESS;
-use self::winapi::winerror::ERROR_NO_MORE_FILES;
+use self::winapi::winerror::{ERROR_NO_MORE_FILES, ERROR_SUCCESS};
 
 use process_entry::ProcessEntry;
 use toolhelp_32_snapshot_handle::Toolhelp32SnapshotHandle;
@@ -23,18 +22,12 @@ impl ProcessIterator {
         if handle == INVALID_HANDLE_VALUE {
             return Err(Error::last_os_error());
         }
-        let handle = Toolhelp32SnapshotHandle(handle);
-
-        let mut entry = ProcessEntry::new();
-        unsafe {
-            if kernel32::Process32FirstW(handle.0, &mut entry.0) == FALSE {
-                return Err(Error::last_os_error());
-            }
-        }
+        let mut handle = Toolhelp32SnapshotHandle::new(handle);
+        let process_entry = handle.first()?;
 
         Ok(ProcessIterator {
             handle: handle,
-            first: Some(entry),
+            first: Some(process_entry),
         })
     }
 }
@@ -45,18 +38,13 @@ impl Iterator for ProcessIterator {
     fn next(&mut self) -> Option<Result<ProcessEntry>> {
         match self.first.take() {
             Some(process_entry) => Some(Ok(process_entry)),
-            None => unsafe {
-                let mut entry = ProcessEntry::new();
-                if kernel32::Process32NextW(self.handle.0, &mut entry.0) == FALSE {
-                    if kernel32::GetLastError() == ERROR_NO_MORE_FILES {
-                        None
-                    } else {
-                        Some(Err(Error::last_os_error()))
-                    }
-                } else {
-                    Some(Ok(entry))
+            None => {
+                match self.handle.next() {
+                    Err(ref error) if error.raw_os_error().unwrap_or(ERROR_SUCCESS as i32) ==
+                                      ERROR_NO_MORE_FILES as i32 => None,
+                    x => Some(x),
                 }
-            },
+            }
         }
     }
 }
